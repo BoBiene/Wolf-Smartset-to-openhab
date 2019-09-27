@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28922.388
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WolfSmartsetCollector", "WolfSmartsetCollector\WolfSmartsetCollector.csproj", "{6565F075-B6C6-4270-9A32-E401E4B37E5D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6565F075-B6C6-4270-9A32-E401E4B37E5D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6565F075-B6C6-4270-9A32-E401E4B37E5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6565F075-B6C6-4270-9A32-E401E4B37E5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6565F075-B6C6-4270-9A32-E401E4B37E5D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CA9E8B2B-29A8-4492-853A-A35B61A2ACD9}
+	EndGlobalSection
+EndGlobal
