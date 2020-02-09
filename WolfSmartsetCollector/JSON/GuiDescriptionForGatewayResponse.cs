@@ -242,6 +242,7 @@ namespace WolfSmartsetCollector.JSON
         List<ListItem> ListItems { get; set; }
         string Name { get; set; }
         long ParameterId { get; set; }
+        long ValueId { get; }
         Unit? Unit { get; set; }
         string Value { get; set; }
     }

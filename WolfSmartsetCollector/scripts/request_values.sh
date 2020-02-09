@@ -1,0 +1,4 @@
+#!/bin/bash
+#cmd="curl 'https://www.wolf-smartset.com/portal/api/portal/GetGuiDescriptionForGateway?GatewayId=$2&SystemId=$3' -H 'authorization: Bearer $1'"
+cmd="curl 'https://www.wolf-smartset.com/portal/api/portal/GetParameterValues' -H 'authority: www.wolf-smartset.com' -H 'accept: */*' -H 'authorization: Bearer $1' -H 'content-type: application/json; charset=UTF-8' -H 'origin: https://www.wolf-smartset.com' -H 'sec-fetch-site: same-origin' -H 'sec-fetch-mode: cors' -H 'sec-fetch-dest: empty' --data-binary '{\"GatewayId\":$2,\"SystemId\":$3,\"BundleId\":$4,\"ValueIdList\":[$5]}'"
+eval $cmd "2>/dev/null"

@@ -4,6 +4,7 @@ using RestSharp;
 using RestSharp.Authenticators;
 using RestSharp.Serialization;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -13,14 +14,14 @@ namespace WolfSmartsetCollector
 {
     class Program
     {
-      
+
         static void Main(string[] args)
         {
             try
             {
                 Parser.Default.ParseArguments<Options>(args)
                  .WithParsed<Options>(Run);
-                    
+
             }
             catch (Exception ex)
             {
@@ -45,22 +46,22 @@ namespace WolfSmartsetCollector
 
 
 
-                        var loginRequest = new RestRequest("portal/connect/token2", Method.POST);
+                        var loginRequest = new RestRequest("portal/connect/token", Method.POST);
                         loginRequest.AddParameter("grant_type", "password");
                         loginRequest.AddParameter("username", options.UserName);
                         loginRequest.AddParameter("password", options.Password);
-                        loginRequest.AddParameter("client_id", "ro.client");
-                        loginRequest.AddParameter("scope", "offline_access openid api");
-                        loginRequest.AddParameter("website_version", "29");
+                        loginRequest.AddParameter("AppVersion", "2.1.12");
+                        loginRequest.AddParameter("scope", "offline_access");
+                        loginRequest.AddParameter("WebApiVersion", "2");
 
-                  
+
                         var loginResponse = client.Execute<LoginResponse>(loginRequest);
 
                         if (loginResponse.StatusCode == HttpStatusCode.OK)
                         {
                             var token = loginResponse.Data;
                             client.Authenticator = new JwtAuthenticator(token.AccessToken);
-                         
+
                             var systemListResponse = client.Execute<List<WolfSystem>>(new RestRequest("portal/api/portal/GetSystemList", Method.GET));
                             HashSet<string> createdItems = new HashSet<string>();
                             Dictionary<long, List<string>> mapValues = new Dictionary<long, List<string>>();
@@ -71,33 +72,53 @@ namespace WolfSmartsetCollector
                                      .AddParameter("GatewayId", system.GatewayId)
                                      .AddParameter("SystemId", system.Id));
 
+                                var fachmannNode = guiDescriptionForGatewayResponse.Data.MenuItems.Find(m => m.Name == "Fachmann");
+                                fachmannNode.SubMenuEntries.Sort((s1, s2) => StringComparer.OrdinalIgnoreCase.Compare(s1?.Name, s2?.Name));
+                             
+
                                 rulesFile.Write($@"
 rule ""Refresh {system.Name}""
     when System started or Time cron ""0 0/1 * 1/1 * ? *""
 then
-    var String jsonToken =  executeCommandLine(""bash@@/openhab/conf/scripts/request_token.sh@@{options.UserName}@@{Uri.EscapeDataString(options.Password)}"",5000)
+    var String jsonToken =  executeCommandLine(""bash@@/etc/openhab2/scripts/request_token.sh@@{options.UserName}@@{Uri.EscapeDataString(options.Password)}"",5000)
     var String token = transform(""JSONPATH"",""$.access_token"",jsonToken);
-    var String jsonValues =  executeCommandLine(""bash@@/openhab/conf/scripts/request_values.sh@@""+token+""@@{system.GatewayId}@@{system.Id}"",5000)
+    var String jsonValues =  """";
 ");
 
-                                var fachmannNode = guiDescriptionForGatewayResponse.Data.MenuItems.Find(m => m.Name == "Fachmann");
+
+
+
+
+
                                 foreach (var submenu in fachmannNode.SubMenuEntries)
                                 {
-
+                                    submenu.TabViews.Sort((t1, t2) => StringComparer.OrdinalIgnoreCase.Compare(t1?.TabName, t2?.TabName));
                                     foreach (var tabView in submenu.TabViews)
                                     {
+
+                                        var allValueIDs = tabView.ParameterDescriptors.Select(p => p.ValueId).Concat(tabView?.SchemaTabViewConfigDto?.Configs?.SelectMany(cfg => cfg.Parameters).Select(cp => cp.ValueId) ?? new long[0]).ToList();
+
+                                        rulesFile.Write($@"
+    jsonValues =  executeCommandLine(""bash@@/etc/openhab2/scripts/request_values.sh@@""+token+""@@{system.GatewayId}@@{system.Id}@@{tabView.BundleId}@@{string.Join(",", allValueIDs)}"",5000)
+    logDebug(""Wolf"",jsonValues);
+");
+
+
+                                        //BundleId
+
+
                                         string tabViewName = (string.IsNullOrWhiteSpace(tabView.TabName) || tabView.TabName == "NULL") ? string.Empty : tabView.TabName;
 
                                         string grpName = (submenu.Name + (string.IsNullOrWhiteSpace(tabViewName) ? "" : "_" + tabViewName)).Escape();
                                         itemsFile.WriteLine($"Group {grpName} \"{submenu.Name}{(string.IsNullOrWhiteSpace(tabViewName) ? "" : " - " + tabViewName)}\"");
                                         sitemapFile.WriteLine($"Group item={grpName} ");
-
                                         foreach (var parameter in tabView.ParameterDescriptors)
                                         {
                                             AddParameter(rulesFile, itemsFile, createdItems, mapValues, grpName, parameter);
                                         }
 
                                         if (tabView?.SchemaTabViewConfigDto?.Configs != null)
+                                        {
                                             foreach (var cfg in tabView.SchemaTabViewConfigDto.Configs)
                                             {
                                                 foreach (var parameter in cfg.Parameters)
@@ -105,7 +126,7 @@ then
                                                     AddParameter(rulesFile, itemsFile, createdItems, mapValues, grpName, parameter);
                                                 }
                                             }
-
+                                        }
                                         //$.MenuItems[?(@.Name="Fachmann")]..ParameterDescriptors[?(@.ParameterId=800400001)].Value
                                     }
                                 }
@@ -121,11 +142,11 @@ then
                     }
                 }
             }
-            DirectoryInfo confDir = new DirectoryInfo(options.OutputDir);
+            DirectoryInfo confDir = (string.IsNullOrEmpty(options.OutputDir)) ? new DirectoryInfo(Environment.CurrentDirectory) : new DirectoryInfo(options.OutputDir);
             Console.WriteLine("Created config files at " + confDir.FullName);
         }
 
-        private static void AddParameter(StreamWriter rulesFile, StreamWriter itemsFile, 
+        private static void AddParameter(StreamWriter rulesFile, StreamWriter itemsFile,
             HashSet<string> createdItems, Dictionary<long, List<string>> mapValues, string grpName, IParameter parameter)
         {
             var itemName = grpName + "_" + parameter.Name.Escape();
@@ -164,11 +185,11 @@ then
 
                 itemsFile.WriteLine($"{strItemType} {itemName} \"{parameter.Name} [%{strFormatString}{GetUnit(parameter.Unit)}]\" ({grpName})");
                 rulesFile.WriteLine("\ttry {");
-                rulesFile.WriteLine($"\t\tvar String {itemName}Value = transform(\"JSONPATH\",'$..ParameterDescriptors[?(@.ParameterId=={parameter.ParameterId})].Value',jsonValues)");
+                rulesFile.WriteLine($"\t\tvar String {itemName}Value = transform(\"JSONPATH\",'$..[?(@.ValueId=={parameter.ValueId})].Value',jsonValues)");
 
                 rulesFile.WriteLine($"\t\tif({itemName}Value.startsWith(\"[\") && {itemName}Value.endsWith(\"]\"))");
                 rulesFile.WriteLine($"\t\t\t{itemName}Value = transform(\"JSONPATH\",'$[-1]',{itemName}Value)");
-                rulesFile.WriteLine($"\t\tlogInfo(\"Wolf\",\"{itemName}=\"+{itemName}Value)");
+                rulesFile.WriteLine($"\t\tlogDebug(\"Wolf\",\"{itemName}=\"+{itemName}Value)");
 
                 if (blnType)
                 {
@@ -285,12 +306,12 @@ then
         private static StreamWriter CreateRules(Options options)
         {
             var writer = CreateConfigFile(options, "rules\\wolf_smartset.rules");
-           
+
             return writer;
         }
         private static StreamWriter CreateConfigFile(Options options, string strName)
         {
-            string strPath = Path.Combine(options.OutputDir,strName);
+            string strPath = (!string.IsNullOrEmpty(options.OutputDir)) ? Path.Combine(options.OutputDir, strName) : strName;
             FileInfo f = new FileInfo(strPath);
             if (!f.Directory.Exists)
                 f.Directory.Create();

@@ -11,4 +11,10 @@
     <PackageReference Include="RestSharp" Version="106.6.10" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="scripts\request_token.sh">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
