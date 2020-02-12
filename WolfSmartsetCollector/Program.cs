@@ -77,17 +77,32 @@ namespace WolfSmartsetCollector
                              
 
                                 rulesFile.Write($@"
-rule ""Refresh {system.Name}""
+var String token =""""
+var String jsonConfig = """"
+var DateTime tokenTime = new DateTime(1970,1,1,0,0)
+
+rule ""Refresh Wolf {system.Name}""
     when System started or Time cron ""0 0/1 * 1/1 * ? *""
 then
-    var String jsonToken =  executeCommandLine(""bash@@/etc/openhab2/scripts/request_token.sh@@{options.UserName}@@{Uri.EscapeDataString(options.Password)}"",5000)
-    var String token = transform(""JSONPATH"",""$.access_token"",jsonToken);
+    if(tokenTime < now.plusHours(-1))
+	{{
+        logInfo(""Wolf"",""Token expired, requesting new token"");
+        var String jsonToken =  executeCommandLine(""bash@@/etc/openhab2/scripts/request_token.sh@@{options.UserName}@@{Uri.EscapeDataString(options.Password)}"",5000)
+        token = transform(""JSONPATH"",""$.access_token"",jsonToken);
+        jsonConfig =   executeCommandLine(""bash@@/etc/openhab2/scripts/request_config.sh@@""+token+""@@13657@@17269"",5000);
+        logDebug(""Wolf"",jsonConfig);
+        tokenTime = now;
+    }}
+    else {{ }}
+
     var String jsonValues =  """";
+    var String ValueIds =  """";
 ");
 
 
 
 
+                              
 
 
                                 foreach (var submenu in fachmannNode.SubMenuEntries)
@@ -96,15 +111,17 @@ then
                                     foreach (var tabView in submenu.TabViews)
                                     {
 
-                                        var allValueIDs = tabView.ParameterDescriptors.Select(p => p.ValueId).Concat(tabView?.SchemaTabViewConfigDto?.Configs?.SelectMany(cfg => cfg.Parameters).Select(cp => cp.ValueId) ?? new long[0]).ToList();
+                                        //  var allValueIDs = tabView.ParameterDescriptors.Select(p => p.ValueId).Concat(tabView?.SchemaTabViewConfigDto?.Configs?.SelectMany(cfg => cfg.Parameters).Select(cp => cp.ValueId) ?? new long[0]).ToList();
 
-                                        rulesFile.Write($@"
-    jsonValues =  executeCommandLine(""bash@@/etc/openhab2/scripts/request_values.sh@@""+token+""@@{system.GatewayId}@@{system.Id}@@{tabView.BundleId}@@{string.Join(",", allValueIDs)}"",5000)
-    logDebug(""Wolf"",jsonValues);
-");
 
 
                                         //BundleId
+
+                                        rulesFile.Write($@"
+    ValueIds = transform(""JSONPATH"",""$..[?(@.BundleId == {tabView.BundleId})]..[?(@.ValueId>0)].ValueId"", jsonConfig);
+    jsonValues =  executeCommandLine(""bash@@/etc/openhab2/scripts/request_values.sh@@""+token+""@@{system.GatewayId}@@{system.Id}@@{tabView.BundleId}@@""+ValueIds+"""",5000);
+    logDebug(""Wolf"",jsonValues);
+");
 
 
                                         string tabViewName = (string.IsNullOrWhiteSpace(tabView.TabName) || tabView.TabName == "NULL") ? string.Empty : tabView.TabName;
@@ -127,7 +144,6 @@ then
                                                 }
                                             }
                                         }
-                                        //$.MenuItems[?(@.Name="Fachmann")]..ParameterDescriptors[?(@.ParameterId=800400001)].Value
                                     }
                                 }
 
@@ -185,11 +201,13 @@ then
 
                 itemsFile.WriteLine($"{strItemType} {itemName} \"{parameter.Name} [%{strFormatString}{GetUnit(parameter.Unit)}]\" ({grpName})");
                 rulesFile.WriteLine("\ttry {");
-                rulesFile.WriteLine($"\t\tvar String {itemName}Value = transform(\"JSONPATH\",'$..[?(@.ValueId=={parameter.ValueId})].Value',jsonValues)");
-
+                rulesFile.WriteLine($"\t\tvar String {itemName}ValueId = transform(\"JSONPATH\",'$..[?(@.ParameterId=={parameter.ParameterId})].ValueId',jsonConfig)");
+                rulesFile.WriteLine($"\t\tvar String {itemName}Value = transform(\"JSONPATH\",'$..[?(@.ValueId=='+{itemName}ValueId+')].Value',jsonValues)");
+                rulesFile.WriteLine($"\t\tif({itemName}Value ===null || {itemName}Value.isEmpty()|| {itemName}Value==\"NULL\")");
+                rulesFile.WriteLine($"\t\t\t{itemName}Value = transform(\"JSONPATH\",'$..[?(@.ParameterId=={parameter.ParameterId})].Value',jsonConfig)");
                 rulesFile.WriteLine($"\t\tif({itemName}Value.startsWith(\"[\") && {itemName}Value.endsWith(\"]\"))");
                 rulesFile.WriteLine($"\t\t\t{itemName}Value = transform(\"JSONPATH\",'$[-1]',{itemName}Value)");
-                rulesFile.WriteLine($"\t\tlogDebug(\"Wolf\",\"{itemName}=\"+{itemName}Value)");
+                rulesFile.WriteLine($"\t\tlogInfo(\"Wolf\",\"{itemName}=\"+{itemName}Value)");
 
                 if (blnType)
                 {
