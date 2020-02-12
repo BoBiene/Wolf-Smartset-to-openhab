@@ -7,7 +7,7 @@ parameter+="-H 'origin: https://www.wolf-smartset.com' "
 parameter+="-H 'sec-fetch-site: same-origin' "
 parameter+="-H 'sec-fetch-mode: cors' "
 parameter+="-H 'sec-fetch-dest: empty' "
-parameter+="--data-binary '{\"BundleId\":$4,\"IsSubBundle\":false,\"ValueIdList\":$5,\"GatewayId\":$2,\"SystemId\":$3,\"LastAccess\":null,\"GuiIdChanged\":true}'"
+parameter+="--data-binary '{\"GatewayId\":$2,\"SystemId\":$3,\"BundleId\":$4,\"ValueIdList\":[$5], \"LastAccess\": null,\"GuiIdChanged\":true}'"
 cmd="curl 'https://www.wolf-smartset.com/portal/api/portal/GetParameterValues' $parameter"
-# echo $cmd
+
 eval $cmd "2>/dev/null"

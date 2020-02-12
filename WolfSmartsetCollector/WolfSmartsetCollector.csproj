@@ -6,15 +6,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommandLineParser" Version="2.6.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
-    <PackageReference Include="RestSharp" Version="106.6.10" />
+    <None Remove="scripts\request_config.sh" />
+    <None Remove="scripts\request_token.sh" />
+    <None Remove="scripts\request_values.sh" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="scripts\request_token.sh">
+    <EmbeddedResource Include="scripts\request_config.sh" />
+    <EmbeddedResource Include="scripts\request_token.sh">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
+    </EmbeddedResource>
+    <EmbeddedResource Include="scripts\request_values.sh" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommandLineParser" Version="2.6.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
+    <PackageReference Include="RestSharp" Version="106.6.10" />
   </ItemGroup>
 
 </Project>

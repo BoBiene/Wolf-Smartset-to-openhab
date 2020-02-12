@@ -33,18 +33,15 @@ namespace WolfSmartsetCollector
         {
             using (StreamWriter rulesFile = CreateRules(options))
             {
-                using (StreamWriter itemsFile = CreateConfigFile(options, "items\\wolf_smartset.items"))
+                using (StreamWriter itemsFile = CreateOutputfile(options, "items\\wolf_smartset.items"))
                 {
                     using (StreamWriter sitemapFile = CreateSitemap(options))
                     {
-
                         Dictionary<Type, JsonSerializerSettings> typeSerializer = new Dictionary<Type, JsonSerializerSettings>();
 
                         typeSerializer.Add(typeof(GuiDescriptionForGatewayResponse), GuiDescriptionForGatewayResponseConverter.Settings);
                         var client = new RestClient("https://www.wolf-smartset.com/")
                              .UseSerializer(() => new JsonNetSerializer(t => typeSerializer.TryGetValue(t, out var s) ? s : null));
-
-
 
                         var loginRequest = new RestRequest("portal/connect/token", Method.POST);
                         loginRequest.AddParameter("grant_type", "password");
@@ -99,22 +96,11 @@ then
     var String ValueIds =  """";
 ");
 
-
-
-
-                              
-
-
                                 foreach (var submenu in fachmannNode.SubMenuEntries)
                                 {
                                     submenu.TabViews.Sort((t1, t2) => StringComparer.OrdinalIgnoreCase.Compare(t1?.TabName, t2?.TabName));
                                     foreach (var tabView in submenu.TabViews)
                                     {
-
-                                        //  var allValueIDs = tabView.ParameterDescriptors.Select(p => p.ValueId).Concat(tabView?.SchemaTabViewConfigDto?.Configs?.SelectMany(cfg => cfg.Parameters).Select(cp => cp.ValueId) ?? new long[0]).ToList();
-
-
-
                                         //BundleId
 
                                         rulesFile.Write($@"
@@ -122,8 +108,6 @@ then
     jsonValues =  executeCommandLine(""bash@@/etc/openhab2/scripts/request_values.sh@@""+token+""@@{system.GatewayId}@@{system.Id}@@{tabView.BundleId}@@""+ValueIds+"""",5000);
     logDebug(""Wolf"",jsonValues);
 ");
-
-
                                         string tabViewName = (string.IsNullOrWhiteSpace(tabView.TabName) || tabView.TabName == "NULL") ? string.Empty : tabView.TabName;
 
                                         string grpName = (submenu.Name + (string.IsNullOrWhiteSpace(tabViewName) ? "" : "_" + tabViewName)).Escape();
@@ -159,6 +143,22 @@ then
                 }
             }
             DirectoryInfo confDir = (string.IsNullOrEmpty(options.OutputDir)) ? new DirectoryInfo(Environment.CurrentDirectory) : new DirectoryInfo(options.OutputDir);
+            string scriptFolder = ".scripts.";
+            var assembly = typeof(Program).Assembly;
+            foreach (var scriptName in assembly.GetManifestResourceNames().Where(s => s.Contains(scriptFolder, StringComparison.InvariantCultureIgnoreCase) && s.EndsWith(".sh")))
+            {
+                string strFileName = scriptName.Substring(scriptName.IndexOf(scriptFolder) + scriptFolder.Length);
+
+                using (var inputstream = assembly.GetManifestResourceStream(scriptName))
+                {
+                    using (var outputstream = CreateOutputfile(options, Path.Combine("Scripts", strFileName)))
+                    {
+                        inputstream.CopyTo(outputstream.BaseStream);
+                    }
+                }
+
+            }
+
             Console.WriteLine("Created config files at " + confDir.FullName);
         }
 
@@ -323,11 +323,11 @@ then
 
         private static StreamWriter CreateRules(Options options)
         {
-            var writer = CreateConfigFile(options, "rules\\wolf_smartset.rules");
+            var writer = CreateOutputfile(options, "rules\\wolf_smartset.rules");
 
             return writer;
         }
-        private static StreamWriter CreateConfigFile(Options options, string strName)
+        private static StreamWriter CreateOutputfile(Options options, string strName)
         {
             string strPath = (!string.IsNullOrEmpty(options.OutputDir)) ? Path.Combine(options.OutputDir, strName) : strName;
             FileInfo f = new FileInfo(strPath);
@@ -341,7 +341,7 @@ then
 
         private static StreamWriter CreateSitemap(Options options)
         {
-            var writer = CreateConfigFile(options, "sitemaps\\wolf_smartset.sitemap");
+            var writer = CreateOutputfile(options, "sitemaps\\wolf_smartset.sitemap");
 
             writer.WriteLine("sitemap wolf_smartset label=\"Wolf Smartset\" icon=\"heating\" {");
 
