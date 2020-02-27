@@ -19,4 +19,5 @@ jobs:
       uses: actions/upload-artifact@v1.0.0
       with:
         # Directory containing files to upload
-        path: WolfSmartsetCollector/bin/Release/
+        name: WolfSmartsetCollector.dll
+        path: WolfSmartsetCollector/bin/Release/netcoreapp2.1/
