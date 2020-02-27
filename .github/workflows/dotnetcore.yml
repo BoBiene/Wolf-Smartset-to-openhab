@@ -18,7 +18,5 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:
-        # Artifact name
-        name: .*
         # Directory containing files to upload
         path: WolfSmartsetCollector/bin/Release/
