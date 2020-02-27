@@ -21,4 +21,4 @@ jobs:
         # Artifact name
         name: .*
         # Directory containing files to upload
-        path: openhab/WolfSmartsetCollector/bin/Release/
+        path: WolfSmartsetCollector/bin/Release/
