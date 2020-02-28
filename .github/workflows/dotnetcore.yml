@@ -22,4 +22,4 @@ jobs:
       with:
         # Directory containing files to upload
         name: WolfSmartsetCollector
-        path: WolfSmartsetCollector/bin/Release/
+        path: WolfSmartsetCollector/bin/Release/publish
