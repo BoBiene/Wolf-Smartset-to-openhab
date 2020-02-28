@@ -15,9 +15,11 @@ jobs:
         dotnet-version: 2.2.108
     - name: Build with dotnet
       run: dotnet build --configuration Release
+    - name: Publish with dotnet
+      run: dotnet publish --configuration Release
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:
         # Directory containing files to upload
-        name: WolfSmartsetCollector.dll
-        path: WolfSmartsetCollector/bin/Release/netcoreapp2.1/
+        name: WolfSmartsetCollector
+        path: WolfSmartsetCollector/bin/Release/
