@@ -14,6 +14,15 @@ The WolfSmarset Collecor will query the Smartset API for you Heating configurati
 run dotnet .\WolfSmartsetCollector.dll -u "<<USERNAME>>" -p "<<PASSWORD>>"
 ```
 
+### Generated files
+
+* items\wolf_smartset.items
+* rules\wolf_smartset.rules
+* Scripts\request_config.sh
+* Scripts\request_token.sh
+* Scripts\request_values.sh
+* sitemaps\wolf_smartset.sitemap
+
 ## Requirements
   1. Linux / Bash
   2. JsonTransform (http://docs.openhab.org/addons/transformations/jsonpath/readme.html)
