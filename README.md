@@ -3,7 +3,7 @@ Wolf Smartset Cloud-Connection for openhab
 
 ## Download
 ![.NET Core](https://github.com/BoBiene/Wolf-Smartset-to-openhab/workflows/.NET%20Core/badge.svg)
-
+https://github.com/BoBiene/Wolf-Smartset-to-openhab/releases
 
 ## Usage 
 
