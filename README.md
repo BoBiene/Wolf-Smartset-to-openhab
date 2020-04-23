@@ -7,7 +7,7 @@ https://github.com/BoBiene/Wolf-Smartset-to-openhab/releases
 
 ## Usage 
 
-Replace ```<<USERNAME>>``` and ```<<PASSWORD>>``` with you Log-in credentials from https://www.wolf-smartset.com/ Portal.
+Replace ```<<USERNAME>>``` and ```<<PASSWORD>>``` with your Log-in credentials from https://www.wolf-smartset.com/ Portal.
 The WolfSmarset Collecor will query the Smartset API for you Heating configuration and genreate all needed Item, Rules, script and sitemap files in the specified output-directory.
 
 ```
@@ -23,7 +23,11 @@ run dotnet .\WolfSmartsetCollector.dll -u "<<USERNAME>>" -p "<<PASSWORD>>"
 * Scripts\request_values.sh
 * sitemaps\wolf_smartset.sitemap
 
-## Requirements
+## executing the converter Requirements
+  1. .NET Core 2.1 on Windows / Linux
+  2. https://www.wolf-smartset.com/ Account and a ISM7i, ISM7e, Wolf Link Pro or Wolf Link Home
+
+## openHAB runtime Requirements
   1. Linux / Bash
   2. JsonTransform (http://docs.openhab.org/addons/transformations/jsonpath/readme.html)
   3. curl accessable via Path (I use http://www.paehl.com/open_source/?CURL_7.55.1)
