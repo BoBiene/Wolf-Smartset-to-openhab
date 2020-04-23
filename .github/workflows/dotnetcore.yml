@@ -10,9 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Setup .NET Core
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: 2.2.108
+      uses: actions/setup-dotnet@v1.4.0
     - name: Build with dotnet
       run: dotnet build --configuration Release
     - name: Publish with dotnet
@@ -22,4 +20,4 @@ jobs:
       with:
         # Directory containing files to upload
         name: WolfSmartsetCollector
-        path: WolfSmartsetCollector/bin/Release/netcoreapp2.1/publish/
+        path: WolfSmartsetCollector/bin/Release/netcoreapp3.1/publish/
