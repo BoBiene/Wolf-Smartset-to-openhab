@@ -2,7 +2,6 @@
 using Newtonsoft.Json;
 using RestSharp;
 using RestSharp.Authenticators;
-using RestSharp.Serialization;
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -31,49 +30,60 @@ namespace WolfSmartsetCollector
 
         static void Run(Options options)
         {
-            using (StreamWriter rulesFile = CreateRules(options))
+            try
             {
-                using (StreamWriter itemsFile = CreateOutputfile(options, "items\\wolf_smartset.items"))
+                using (StreamWriter rulesFile = CreateRules(options))
                 {
-                    using (StreamWriter sitemapFile = CreateSitemap(options))
+                    using (StreamWriter itemsFile = CreateOutputfile(options, Path.Combine("items","wolf_smartset.items")))
                     {
-                        Dictionary<Type, JsonSerializerSettings> typeSerializer = new Dictionary<Type, JsonSerializerSettings>();
-
-                        typeSerializer.Add(typeof(GuiDescriptionForGatewayResponse), GuiDescriptionForGatewayResponseConverter.Settings);
-                        var client = new RestClient("https://www.wolf-smartset.com/")
-                             .UseSerializer(() => new JsonNetSerializer(t => typeSerializer.TryGetValue(t, out var s) ? s : null));
-
-                        var loginRequest = new RestRequest("portal/connect/token", Method.POST);
-                        loginRequest.AddParameter("grant_type", "password");
-                        loginRequest.AddParameter("username", options.UserName);
-                        loginRequest.AddParameter("password", options.Password);
-                        loginRequest.AddParameter("AppVersion", "2.1.12");
-                        loginRequest.AddParameter("scope", "offline_access");
-                        loginRequest.AddParameter("WebApiVersion", "2");
-
-
-                        var loginResponse = client.Execute<LoginResponse>(loginRequest);
-
-                        if (loginResponse.StatusCode == HttpStatusCode.OK)
+                        using (StreamWriter sitemapFile = CreateSitemap(options))
                         {
-                            var token = loginResponse.Data;
-                            client.Authenticator = new JwtAuthenticator(token.AccessToken);
+                            Dictionary<Type, JsonSerializerSettings> typeSerializer = new Dictionary<Type, JsonSerializerSettings>();
 
-                            var systemListResponse = client.Execute<List<WolfSystem>>(new RestRequest("portal/api/portal/GetSystemList", Method.GET));
-                            HashSet<string> createdItems = new HashSet<string>();
-                            Dictionary<long, List<string>> mapValues = new Dictionary<long, List<string>>();
-                            foreach (var system in systemListResponse.Data)
+                            typeSerializer.Add(typeof(GuiDescriptionForGatewayResponse), GuiDescriptionForGatewayResponseConverter.Settings);
+                            var client = new RestClient("https://www.wolf-smartset.com/")
+                                 .UseSerializer(() => new JsonNetSerializer(t => typeSerializer.TryGetValue(t, out var s) ? s : null));
+
+                            var loginRequest = new RestRequest("portal/connect/token", Method.POST);
+                            loginRequest.AddParameter("grant_type", "password");
+                            loginRequest.AddParameter("username", options.UserName);
+                            loginRequest.AddParameter("password", options.Password);
+                            loginRequest.AddParameter("AppVersion", "2.1.12");
+                            loginRequest.AddParameter("scope", "offline_access");
+                            loginRequest.AddParameter("WebApiVersion", "2");
+
+                            Console.WriteLine("Try to authenticate at " + loginRequest.Resource);
+                            var loginResponse = client.Execute<LoginResponse>(loginRequest);
+
+                            if (loginResponse.StatusCode == HttpStatusCode.OK)
                             {
-                                var guiDescriptionForGatewayResponse = client.Execute<GuiDescriptionForGatewayResponse>(
-                                     new RestRequest("portal/api/portal/GetGuiDescriptionForGateway", Method.GET)
-                                     .AddParameter("GatewayId", system.GatewayId)
-                                     .AddParameter("SystemId", system.Id));
+                                Console.WriteLine("Login successfull...");
+                                var token = loginResponse.Data;
+                                client.Authenticator = new JwtAuthenticator(token.AccessToken);
+                                Console.WriteLine("Requesting system list");
+                                var systemListRequest = new RestRequest("portal/api/portal/GetSystemList", Method.GET);
+                                var systemListResponse = client.Execute<List<WolfSystem>>(systemListRequest);
+                                if (systemListResponse.StatusCode == HttpStatusCode.OK)
+                                {
+                                    Console.WriteLine("Got valid response for " + ToLogString(systemListRequest));
+                                    HashSet<string> createdItems = new HashSet<string>();
+                                    Dictionary<long, List<string>> mapValues = new Dictionary<long, List<string>>();
+                                    foreach (var system in systemListResponse.Data)
+                                    {
+                                        
+                                        var guiDescriptionForGatewayRequest = new RestRequest("portal/api/portal/GetGuiDescriptionForGateway", Method.GET)
+                                             .AddParameter("GatewayId", system.GatewayId)
+                                             .AddParameter("SystemId", system.Id);
+                                        
+                                        var guiDescriptionForGatewayResponse = client.Execute<GuiDescriptionForGatewayResponse>(guiDescriptionForGatewayRequest);
+                                        if (guiDescriptionForGatewayResponse.StatusCode == HttpStatusCode.OK)
+                                        {
+                                            Console.WriteLine("Got valid response for " + ToLogString( guiDescriptionForGatewayRequest));
+                                            var fachmannNode = guiDescriptionForGatewayResponse.Data.MenuItems.Find(m => m.Name == "Fachmann");
+                                            fachmannNode.SubMenuEntries.Sort((s1, s2) => StringComparer.OrdinalIgnoreCase.Compare(s1?.Name, s2?.Name));
 
-                                var fachmannNode = guiDescriptionForGatewayResponse.Data.MenuItems.Find(m => m.Name == "Fachmann");
-                                fachmannNode.SubMenuEntries.Sort((s1, s2) => StringComparer.OrdinalIgnoreCase.Compare(s1?.Name, s2?.Name));
-                             
 
-                                rulesFile.Write($@"
+                                            rulesFile.Write($@"
 var String token =""""
 var String jsonConfig = """"
 var DateTime tokenTime = new DateTime(1970,1,1,0,0)
@@ -96,70 +106,94 @@ then
     var String ValueIds =  """";
 ");
 
-                                foreach (var submenu in fachmannNode.SubMenuEntries)
-                                {
-                                    submenu.TabViews.Sort((t1, t2) => StringComparer.OrdinalIgnoreCase.Compare(t1?.TabName, t2?.TabName));
-                                    foreach (var tabView in submenu.TabViews)
-                                    {
-                                        //BundleId
+                                            foreach (var submenu in fachmannNode.SubMenuEntries)
+                                            {
+                                                Console.WriteLine("Processing submenu " + submenu.Name);
+                                                submenu.TabViews.Sort((t1, t2) => StringComparer.OrdinalIgnoreCase.Compare(t1?.TabName, t2?.TabName));
+                                                foreach (var tabView in submenu.TabViews)
+                                                {
+                                                    //BundleId
 
-                                        rulesFile.Write($@"
+                                                    rulesFile.Write($@"
     ValueIds = transform(""JSONPATH"",""$..[?(@.BundleId == {tabView.BundleId})]..[?(@.ValueId>0)].ValueId"", jsonConfig);
     jsonValues =  executeCommandLine(""bash@@/etc/openhab2/scripts/request_values.sh@@""+token+""@@{system.GatewayId}@@{system.Id}@@{tabView.BundleId}@@""+ValueIds+"""",5000);
     logDebug(""Wolf"",jsonValues);
 ");
-                                        string tabViewName = (string.IsNullOrWhiteSpace(tabView.TabName) || tabView.TabName == "NULL") ? string.Empty : tabView.TabName;
+                                                    string tabViewName = (string.IsNullOrWhiteSpace(tabView.TabName) || tabView.TabName == "NULL") ? string.Empty : tabView.TabName;
+                                                    Console.WriteLine("Generating items for tab " + tabViewName);
+                                                    string grpName = (submenu.Name + (string.IsNullOrWhiteSpace(tabViewName) ? "" : "_" + tabViewName)).Escape();
+                                                    itemsFile.WriteLine($"Group {grpName} \"{submenu.Name}{(string.IsNullOrWhiteSpace(tabViewName) ? "" : " - " + tabViewName)}\"");
+                                                    sitemapFile.WriteLine($"Group item={grpName} ");
+                                                    foreach (var parameter in tabView.ParameterDescriptors)
+                                                    {
+                                                        AddParameter(rulesFile, itemsFile, createdItems, mapValues, grpName, parameter);
+                                                    }
 
-                                        string grpName = (submenu.Name + (string.IsNullOrWhiteSpace(tabViewName) ? "" : "_" + tabViewName)).Escape();
-                                        itemsFile.WriteLine($"Group {grpName} \"{submenu.Name}{(string.IsNullOrWhiteSpace(tabViewName) ? "" : " - " + tabViewName)}\"");
-                                        sitemapFile.WriteLine($"Group item={grpName} ");
-                                        foreach (var parameter in tabView.ParameterDescriptors)
-                                        {
-                                            AddParameter(rulesFile, itemsFile, createdItems, mapValues, grpName, parameter);
-                                        }
-
-                                        if (tabView?.SchemaTabViewConfigDto?.Configs != null)
-                                        {
-                                            foreach (var cfg in tabView.SchemaTabViewConfigDto.Configs)
-                                            {
-                                                foreach (var parameter in cfg.Parameters)
-                                                {
-                                                    AddParameter(rulesFile, itemsFile, createdItems, mapValues, grpName, parameter);
+                                                    if (tabView?.SchemaTabViewConfigDto?.Configs != null)
+                                                    {
+                                                        foreach (var cfg in tabView.SchemaTabViewConfigDto.Configs)
+                                                        {
+                                                            foreach (var parameter in cfg.Parameters)
+                                                            {
+                                                                AddParameter(rulesFile, itemsFile, createdItems, mapValues, grpName, parameter);
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
+                                        else
+                                        {
+                                            Console.WriteLine("Failed to request " + ToLogString(guiDescriptionForGatewayRequest));
+                                        }
+                                        rulesFile.WriteLine("end");
                                     }
+
                                 }
-
-                                rulesFile.WriteLine("end");
+                                else
+                                {
+                                    Console.WriteLine("Failed to request " + ToLogString(systemListRequest));
+                                }
                             }
+                            else
+                            {
+                                //Login failed
+                                Console.WriteLine("Failed to authenticate");
+                            }
+                            sitemapFile.WriteLine("}");
+
                         }
-                        else
-                        {
-                            //Login failed
-                        }
-                        sitemapFile.WriteLine("}");
                     }
                 }
-            }
-            DirectoryInfo confDir = (string.IsNullOrEmpty(options.OutputDir)) ? new DirectoryInfo(Environment.CurrentDirectory) : new DirectoryInfo(options.OutputDir);
-            string scriptFolder = ".scripts.";
-            var assembly = typeof(Program).Assembly;
-            foreach (var scriptName in assembly.GetManifestResourceNames().Where(s => s.Contains(scriptFolder, StringComparison.InvariantCultureIgnoreCase) && s.EndsWith(".sh")))
-            {
-                string strFileName = scriptName.Substring(scriptName.IndexOf(scriptFolder) + scriptFolder.Length);
-
-                using (var inputstream = assembly.GetManifestResourceStream(scriptName))
+                DirectoryInfo confDir = (string.IsNullOrEmpty(options.OutputDir)) ? new DirectoryInfo(Environment.CurrentDirectory) : new DirectoryInfo(options.OutputDir);
+                string scriptFolder = ".scripts.";
+                var assembly = typeof(Program).Assembly;
+                foreach (var scriptName in assembly.GetManifestResourceNames().Where(s => s.Contains(scriptFolder, StringComparison.InvariantCultureIgnoreCase) && s.EndsWith(".sh")))
                 {
-                    using (var outputstream = CreateOutputfile(options, Path.Combine("Scripts", strFileName)))
+                    string strFileName = scriptName.Substring(scriptName.IndexOf(scriptFolder) + scriptFolder.Length);
+
+                    using (var inputstream = assembly.GetManifestResourceStream(scriptName))
                     {
-                        inputstream.CopyTo(outputstream.BaseStream);
+                        using (var outputstream = CreateOutputfile(options, Path.Combine("Scripts", strFileName)))
+                        {
+                            inputstream.CopyTo(outputstream.BaseStream);
+                        }
                     }
+
                 }
 
-            }
+                Console.WriteLine("Created config files at " + confDir.FullName);
 
-            Console.WriteLine("Created config files at " + confDir.FullName);
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine("Failed: " + ex.ToString());
+            }
+        }
+
+        private static string ToLogString(IRestRequest request)
+        {
+            return $"{request.Resource} (Paramter: { string.Join(", ", request.Parameters.Select(p => $"{p.Name}={((p.Name== "Authorization") ? "****" : p.Value)}"))})";
         }
 
         private static void AddParameter(StreamWriter rulesFile, StreamWriter itemsFile,
@@ -169,6 +203,7 @@ then
             if (!createdItems.Contains(itemName))
             {
                 createdItems.Add(itemName);
+                Console.WriteLine("Creating item " + itemName);
                 if (!mapValues.TryGetValue(parameter.ControlType, out var values))
                     mapValues[parameter.ControlType] = values = new List<string>();
 
@@ -323,7 +358,7 @@ then
 
         private static StreamWriter CreateRules(Options options)
         {
-            var writer = CreateOutputfile(options, "rules\\wolf_smartset.rules");
+            var writer = CreateOutputfile(options, Path.Combine("rules","wolf_smartset.rules"));
 
             return writer;
         }
@@ -332,8 +367,12 @@ then
             string strPath = (!string.IsNullOrEmpty(options.OutputDir)) ? Path.Combine(options.OutputDir, strName) : strName;
             FileInfo f = new FileInfo(strPath);
             if (!f.Directory.Exists)
+            {
+                Console.WriteLine("Creating directory " + f.Directory.FullName);
                 f.Directory.Create();
-
+            }
+            else { }
+            Console.WriteLine("Creating file " + f.FullName);
             Stream s = File.Open(strPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
             return new StreamWriter(s);
         }
@@ -341,7 +380,7 @@ then
 
         private static StreamWriter CreateSitemap(Options options)
         {
-            var writer = CreateOutputfile(options, "sitemaps\\wolf_smartset.sitemap");
+            var writer = CreateOutputfile(options, Path.Combine("sitemaps","wolf_smartset.sitemap"));
 
             writer.WriteLine("sitemap wolf_smartset label=\"Wolf Smartset\" icon=\"heating\" {");
 
