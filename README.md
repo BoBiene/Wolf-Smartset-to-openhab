@@ -17,7 +17,7 @@ run dotnet .\WolfSmartsetCollector.dll -u "<<USERNAME>>" -p "<<PASSWORD>>"
 or with docker
 
 ```
-docker run --rm -v <PATH_TO_CREATE_FILES>:/app/generated/ bobiene/wolfsmartset-to-openhab -u "<<USERNAME>>" -p "<<PASSWORD>>"
+docker run --rm -v <<PATH_TO_CREATE_FILES>>:/app/generated/ bobiene/wolfsmartset-to-openhab -u "<<USERNAME>>" -p "<<PASSWORD>>"
 ```
 
 ### Generated files
