@@ -14,7 +14,7 @@ namespace WolfSmartsetCollector
         [Option('p', Required = true)]
         public string Password { get; set; }
 
-        [Option('o', "output", Required = false, HelpText = "Target directory to create the openHAB files in.")]
-        public string OutputDir { get; set; }
+        [Option('o', "output", Required = false, Default = "generated", HelpText = "Target directory to create the openHAB files in.")]
+        public string OutputDir { get; set; } = "generated";
     }
 }
