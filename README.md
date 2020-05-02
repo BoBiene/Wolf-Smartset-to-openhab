@@ -14,6 +14,12 @@ The WolfSmarset Collecor will query the Smartset API for you Heating configurati
 run dotnet .\WolfSmartsetCollector.dll -u "<<USERNAME>>" -p "<<PASSWORD>>"
 ```
 
+or with docker
+
+```
+docker run --rm -v <PATH_TO_CREATE_FILES>:/app/generated/ bobiene/wolfsmartset-to-openhab -u "<<USERNAME>>" -p "<<PASSWORD>>"
+```
+
 ### Generated files
 
 * items\wolf_smartset.items
@@ -24,8 +30,12 @@ run dotnet .\WolfSmartsetCollector.dll -u "<<USERNAME>>" -p "<<PASSWORD>>"
 * sitemaps\wolf_smartset.sitemap
 
 ## executing the converter Requirements
-  1. .NET Core 2.1 on Windows / Linux
-  2. https://www.wolf-smartset.com/ Account and a ISM7i, ISM7e, Wolf Link Pro or Wolf Link Home
+  
+  - On Windows / Linux
+    1. .NET Core 3.1 on Windows / Linux
+    2. https://www.wolf-smartset.com/ Account and a ISM7i, ISM7e, Wolf Link Pro or Wolf Link Home
+  - With docker
+    1. docker and access to docker hub
 
 ## openHAB runtime Requirements
   1. Linux / Bash
