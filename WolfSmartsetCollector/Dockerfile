@@ -5,9 +5,9 @@ WORKDIR /app
 
 FROM mcr.microsoft.com/dotnet/core/sdk:3.1-buster AS build
 WORKDIR /src
-COPY ["WolfSmartsetCollector.csproj", "WolfSmartsetCollector/"]
+COPY ["WolfSmartsetCollector/WolfSmartsetCollector.csproj", "WolfSmartsetCollector/"]
 RUN dotnet restore "WolfSmartsetCollector/WolfSmartsetCollector.csproj"
-COPY . /WolfSmartsetCollector/
+COPY . .
 WORKDIR "/src/WolfSmartsetCollector"
 RUN dotnet build "WolfSmartsetCollector.csproj" -c Release -o /app/build
 
