@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using WolfSmartsetCollector.JSON;
+using Newtonsoft.Json.Serialization;
 
 namespace WolfSmartsetCollector
 {
@@ -43,6 +44,8 @@ namespace WolfSmartsetCollector
                             typeSerializer.Add(typeof(GuiDescriptionForGatewayResponse), GuiDescriptionForGatewayResponseConverter.Settings);
                             var client = new RestClient("https://www.wolf-smartset.com/")
                                  .UseSerializer(() => new JsonNetSerializer(t => typeSerializer.TryGetValue(t, out var s) ? s : null));
+                            client.ThrowOnAnyError = options.RestThrowOnAnyError;
+                            
 
                             var loginRequest = new RestRequest("portal/connect/token", Method.POST);
                             loginRequest.AddParameter("grant_type", "password");
@@ -66,6 +69,9 @@ namespace WolfSmartsetCollector
                                 if (systemListResponse.StatusCode == HttpStatusCode.OK)
                                 {
                                     Console.WriteLine("Got valid response for " + ToLogString(systemListRequest));
+                                    if (options.DumpResponse)
+                                        DumpResponse(options, systemListResponse); 
+
                                     HashSet<string> createdItems = new HashSet<string>();
                                     Dictionary<long, List<string>> mapValues = new Dictionary<long, List<string>>();
                                     foreach (var system in systemListResponse.Data)
@@ -79,6 +85,10 @@ namespace WolfSmartsetCollector
                                         if (guiDescriptionForGatewayResponse.StatusCode == HttpStatusCode.OK)
                                         {
                                             Console.WriteLine("Got valid response for " + ToLogString( guiDescriptionForGatewayRequest));
+                                            if (options.DumpResponse)
+                                                DumpResponse(options, guiDescriptionForGatewayResponse);
+
+
                                             var fachmannNode = guiDescriptionForGatewayResponse.Data.MenuItems.Find(m => m.Name == "Fachmann");
                                             fachmannNode.SubMenuEntries.Sort((s1, s2) => StringComparer.OrdinalIgnoreCase.Compare(s1?.Name, s2?.Name));
 
@@ -189,6 +199,16 @@ then
             {
                 Console.WriteLine("Failed: " + ex.ToString());
             }
+        }
+
+        private static void DumpResponse(Options options, IRestResponse response)
+        {
+            FileInfo file = new FileInfo(Path.Combine(Path.Combine(options.OutputDir, response.Request.Resource), DateTime.Now.ToString("yyMMddmmhhss") + ".json"));
+            if (!file.Directory.Exists)
+                file.Directory.Create();
+            
+            File.WriteAllText(file.FullName,response.Content);
+            Console.WriteLine("Dumped request to " + file.FullName);
         }
 
         private static string ToLogString(IRestRequest request)
