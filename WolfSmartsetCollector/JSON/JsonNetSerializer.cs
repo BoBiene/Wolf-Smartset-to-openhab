@@ -23,6 +23,9 @@ namespace WolfSmartsetCollector.JSON
         public T Deserialize<T>(IRestResponse response) =>
             JsonConvert.DeserializeObject<T>(response.Content, SerializerSettingsFactory?.Invoke(typeof(T)));
 
+
+        public T Deserialize<T>(string data) => JsonConvert.DeserializeObject<T>(data, SerializerSettingsFactory?.Invoke(typeof(T)));
+
         public string[] SupportedContentTypes { get; } =
         {
                 "application/json", "text/json", "text/x-json", "text/javascript", "*+json"

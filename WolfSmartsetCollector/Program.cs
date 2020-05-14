@@ -9,11 +9,16 @@ using System.IO;
 using System.Net;
 using WolfSmartsetCollector.JSON;
 using Newtonsoft.Json.Serialization;
+using System.Collections.Immutable;
 
 namespace WolfSmartsetCollector
 {
     class Program
     {
+        private static readonly Dictionary<Type, JsonSerializerSettings> typeSerializer = new Dictionary<Type, JsonSerializerSettings>() { 
+            { typeof(GuiDescriptionForGatewayResponse), GuiDescriptionForGatewayResponseConverter.Settings } 
+        };
+        private static readonly JsonNetSerializer jsonNetSerializer = new JsonNetSerializer(t => typeSerializer.TryGetValue(t, out var s) ? s : null);
 
         static void Main(string[] args)
         {
@@ -39,11 +44,8 @@ namespace WolfSmartsetCollector
                     {
                         using (StreamWriter sitemapFile = CreateSitemap(options))
                         {
-                            Dictionary<Type, JsonSerializerSettings> typeSerializer = new Dictionary<Type, JsonSerializerSettings>();
-
-                            typeSerializer.Add(typeof(GuiDescriptionForGatewayResponse), GuiDescriptionForGatewayResponseConverter.Settings);
                             var client = new RestClient("https://www.wolf-smartset.com/")
-                                 .UseSerializer(() => new JsonNetSerializer(t => typeSerializer.TryGetValue(t, out var s) ? s : null));
+                                 .UseSerializer(() => jsonNetSerializer);
                             client.ThrowOnAnyError = options.RestThrowOnAnyError;
                             
 
@@ -65,31 +67,21 @@ namespace WolfSmartsetCollector
                                 client.Authenticator = new JwtAuthenticator(token.AccessToken);
                                 Console.WriteLine("Requesting system list");
                                 var systemListRequest = new RestRequest("portal/api/portal/GetSystemList", Method.GET);
-                                var systemListResponse = client.Execute<List<WolfSystem>>(systemListRequest);
-                                if (systemListResponse.StatusCode == HttpStatusCode.OK)
-                                {
-                                    Console.WriteLine("Got valid response for " + ToLogString(systemListRequest));
-                                    if (options.DumpResponse)
-                                        DumpResponse(options, systemListResponse); 
 
+                                if(TryGetResponse(options,client,systemListRequest,out List<WolfSystem> wolfSystemList))
+                                { 
                                     HashSet<string> createdItems = new HashSet<string>();
                                     Dictionary<long, List<string>> mapValues = new Dictionary<long, List<string>>();
-                                    foreach (var system in systemListResponse.Data)
+                                    foreach (var system in wolfSystemList)
                                     {
                                         
                                         var guiDescriptionForGatewayRequest = new RestRequest("portal/api/portal/GetGuiDescriptionForGateway", Method.GET)
                                              .AddParameter("GatewayId", system.GatewayId)
                                              .AddParameter("SystemId", system.Id);
-                                        
-                                        var guiDescriptionForGatewayResponse = client.Execute<GuiDescriptionForGatewayResponse>(guiDescriptionForGatewayRequest);
-                                        if (guiDescriptionForGatewayResponse.StatusCode == HttpStatusCode.OK)
+
+                                        if (TryGetResponse(options, client, guiDescriptionForGatewayRequest, out GuiDescriptionForGatewayResponse guiDescriptionForGateway))
                                         {
-                                            Console.WriteLine("Got valid response for " + ToLogString( guiDescriptionForGatewayRequest));
-                                            if (options.DumpResponse)
-                                                DumpResponse(options, guiDescriptionForGatewayResponse);
-
-
-                                            var fachmannNode = guiDescriptionForGatewayResponse.Data.MenuItems.Find(m => m.Name == "Fachmann");
+                                            var fachmannNode = guiDescriptionForGateway.MenuItems.Find(m => m.Name == "Fachmann");
                                             fachmannNode.SubMenuEntries.Sort((s1, s2) => StringComparer.OrdinalIgnoreCase.Compare(s1?.Name, s2?.Name));
 
 
@@ -201,14 +193,59 @@ then
             }
         }
 
+        private static bool TryGetResponse<T>(Options options, IRestClient client, IRestRequest request, out T data)
+        {
+            bool blnRet = false;
+            data = default(T);
+            if (options.MockWithCachedResponses)
+            {
+                blnRet = TryLoadNewestJson<T>(getRequstCacheDir(options, request),out data);
+            }
+            else
+            {
+                var response = client.Execute<T>(request);
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    data = response.Data;
+                    Console.WriteLine("Got valid response for " + ToLogString(request));
+                    if (options.DumpResponse)
+                        DumpResponse(options, response);
+                }
+            }
+
+            return blnRet;
+        }
+
+        private static bool TryLoadNewestJson<T>(string cacheDir, out T data)
+        {
+            DirectoryInfo dir = new DirectoryInfo(cacheDir);
+
+            var files =dir.GetFiles().ToList();
+            if (files.Count > 0)
+            {
+                files.Sort((f1, f2) => f2.LastWriteTime.CompareTo(f1.LastWriteTime));
+                var file = files.First();
+                Console.WriteLine("Loading Mock-Response from " + file.FullName);
+                data = jsonNetSerializer.Deserialize<T>(file.OpenText().ReadToEnd());
+                return true;
+            }
+            data = default(T);
+            return false;
+        }
+
         private static void DumpResponse(Options options, IRestResponse response)
         {
-            FileInfo file = new FileInfo(Path.Combine(Path.Combine(options.OutputDir, response.Request.Resource), DateTime.Now.ToString("yyMMddmmhhss") + ".json"));
+            FileInfo file = new FileInfo(Path.Combine(getRequstCacheDir(options,response.Request), DateTime.Now.ToString("yyMMddmmhhss") + ".json"));
             if (!file.Directory.Exists)
                 file.Directory.Create();
             
             File.WriteAllText(file.FullName,response.Content);
             Console.WriteLine("Dumped request to " + file.FullName);
+        }
+
+        private static string getRequstCacheDir(Options options, IRestRequest request)
+        {
+            return Path.Combine(options.OutputDir, request.Resource);
         }
 
         private static string ToLogString(IRestRequest request)
@@ -254,7 +291,7 @@ then
                         break;
                 }
 
-                itemsFile.WriteLine($"{strItemType} {itemName} \"{parameter.Name} [%{strFormatString}{GetUnit(parameter.Unit)}]\" ({grpName})");
+                itemsFile.WriteLine($"{strItemType} {itemName} \"{parameter.Name} [%{strFormatString}{parameter.Unit}]\" ({grpName})");
                 rulesFile.WriteLine("\ttry {");
                 rulesFile.WriteLine($"\t\tvar String {itemName}ValueId = transform(\"JSONPATH\",'$..[?(@.ParameterId=={parameter.ParameterId})].ValueId',jsonConfig)");
                 rulesFile.WriteLine($"\t\tvar String {itemName}Value = transform(\"JSONPATH\",'$..[?(@.ValueId=='+{itemName}ValueId+')].Value',jsonValues)");
@@ -287,38 +324,6 @@ then
             }
         }
 
-        private static object GetUnit(Unit? unit)
-        {
-            if (!unit.HasValue)
-                return string.Empty;
-
-            switch (unit.Value)
-            {
-                case Unit.C:
-                    return " °C";
-                case Unit.K:
-                    return " K";
-                case Unit.KK:
-                    return " K/K";
-                case Unit.LMin:
-                    return " l/min";
-                case Unit.Min:
-                    return " min";
-                case Unit.Std:
-                    return " Std";
-                case Unit.UMin:
-                    return " U/min";
-                case Unit.Uhr:
-                    return " Uhr";
-                case Unit.Wochen:
-                    return " Wochen";
-                case Unit.Empty:
-                    return " %%";
-                default:
-                    return string.Empty;
-            }
-
-        }
 
         private static int GetNumbers(Random random, int numbers)
         {
