@@ -157,10 +157,10 @@ namespace WolfSmartsetCollector.JSON
         public List<ListItem> ListItems { get; set; }
 
         [JsonProperty("ProtGrp", NullValueHandling = NullValueHandling.Ignore)]
-        public ProtGrp? ProtGrp { get; set; }
+        public string ProtGrp { get; set; }
 
         [JsonProperty("Unit", NullValueHandling = NullValueHandling.Ignore)]
-        public Unit? Unit { get; set; }
+        public string Unit { get; set; }
 
         [JsonProperty("Decimals", NullValueHandling = NullValueHandling.Ignore)]
         public long? Decimals { get; set; }
@@ -243,7 +243,7 @@ namespace WolfSmartsetCollector.JSON
         string Name { get; set; }
         long ParameterId { get; set; }
         long ValueId { get; }
-        Unit? Unit { get; set; }
+        string Unit { get; set; }
         string Value { get; set; }
     }
 
@@ -271,10 +271,10 @@ namespace WolfSmartsetCollector.JSON
         public long ValueState { get; set; }
 
         [JsonProperty("ProtGrp")]
-        public ProtGrp ProtGrp { get; set; }
+        public string ProtGrp { get; set; }
 
         [JsonProperty("Unit", NullValueHandling = NullValueHandling.Ignore)]
-        public Unit? Unit { get; set; }
+        public string Unit { get; set; }
 
         [JsonProperty("Decimals", NullValueHandling = NullValueHandling.Ignore)]
         public long? Decimals { get; set; }
@@ -329,9 +329,8 @@ namespace WolfSmartsetCollector.JSON
     }
 
 
-    public enum ProtGrp { Bm0, Dhk0, Hg1, Sm10 };
 
-    public enum Unit { C, Empty, K, KK, LMin, Min, Std, UMin, Uhr, Wochen };
+    
 
 
 
@@ -343,142 +342,11 @@ namespace WolfSmartsetCollector.JSON
             DateParseHandling = DateParseHandling.None,
             Converters =
             {
-                ProtGrpConverter.Singleton,
-                UnitConverter.Singleton,
                 new IsoDateTimeConverter { DateTimeStyles = DateTimeStyles.AssumeUniversal }
             },
         };
     }
 
-    internal class ProtGrpConverter : JsonConverter
-    {
-        public override bool CanConvert(Type t) => t == typeof(ProtGrp) || t == typeof(ProtGrp?);
-
-        public override object ReadJson(JsonReader reader, Type t, object existingValue, JsonSerializer serializer)
-        {
-            if (reader.TokenType == JsonToken.Null) return null;
-            var value = serializer.Deserialize<string>(reader);
-            switch (value)
-            {
-                case "BM <0>":
-                    return ProtGrp.Bm0;
-                case "DHK <0>":
-                    return ProtGrp.Dhk0;
-                case "HG <1>":
-                    return ProtGrp.Hg1;
-                case "SM1 <0>":
-                    return ProtGrp.Sm10;
-            }
-            throw new Exception("Cannot unmarshal type ProtGrp");
-        }
-
-        public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)
-        {
-            if (untypedValue == null)
-            {
-                serializer.Serialize(writer, null);
-                return;
-            }
-            var value = (ProtGrp)untypedValue;
-            switch (value)
-            {
-                case ProtGrp.Bm0:
-                    serializer.Serialize(writer, "BM <0>");
-                    return;
-                case ProtGrp.Dhk0:
-                    serializer.Serialize(writer, "DHK <0>");
-                    return;
-                case ProtGrp.Hg1:
-                    serializer.Serialize(writer, "HG <1>");
-                    return;
-                case ProtGrp.Sm10:
-                    serializer.Serialize(writer, "SM1 <0>");
-                    return;
-            }
-            throw new Exception("Cannot marshal type ProtGrp");
-        }
-
-        public static readonly ProtGrpConverter Singleton = new ProtGrpConverter();
-    }
-
-    internal class UnitConverter : JsonConverter
-    {
-        public override bool CanConvert(Type t) => t == typeof(Unit) || t == typeof(Unit?);
-
-        public override object ReadJson(JsonReader reader, Type t, object existingValue, JsonSerializer serializer)
-        {
-            if (reader.TokenType == JsonToken.Null) return null;
-            var value = serializer.Deserialize<string>(reader);
-            switch (value)
-            {
-                case "%":
-                    return Unit.Empty;
-                case "K":
-                    return Unit.K;
-                case "K/K":
-                    return Unit.KK;
-                case "Std":
-                    return Unit.Std;
-                case "U/min":
-                    return Unit.UMin;
-                case "Uhr":
-                    return Unit.Uhr;
-                case "Wochen":
-                    return Unit.Wochen;
-                case "l/min":
-                    return Unit.LMin;
-                case "min":
-                    return Unit.Min;
-                case "°C":
-                    return Unit.C;
-            }
-            throw new Exception("Cannot unmarshal type Unit");
-        }
-
-        public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)
-        {
-            if (untypedValue == null)
-            {
-                serializer.Serialize(writer, null);
-                return;
-            }
-            var value = (Unit)untypedValue;
-            switch (value)
-            {
-                case Unit.Empty:
-                    serializer.Serialize(writer, "%");
-                    return;
-                case Unit.K:
-                    serializer.Serialize(writer, "K");
-                    return;
-                case Unit.KK:
-                    serializer.Serialize(writer, "K/K");
-                    return;
-                case Unit.Std:
-                    serializer.Serialize(writer, "Std");
-                    return;
-                case Unit.UMin:
-                    serializer.Serialize(writer, "U/min");
-                    return;
-                case Unit.Uhr:
-                    serializer.Serialize(writer, "Uhr");
-                    return;
-                case Unit.Wochen:
-                    serializer.Serialize(writer, "Wochen");
-                    return;
-                case Unit.LMin:
-                    serializer.Serialize(writer, "l/min");
-                    return;
-                case Unit.Min:
-                    serializer.Serialize(writer, "min");
-                    return;
-                case Unit.C:
-                    serializer.Serialize(writer, "°C");
-                    return;
-            }
-            throw new Exception("Cannot marshal type Unit");
-        }
-
-        public static readonly UnitConverter Singleton = new UnitConverter();
-    }
+   
+  
 }

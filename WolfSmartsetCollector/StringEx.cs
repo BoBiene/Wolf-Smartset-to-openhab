@@ -8,13 +8,13 @@ namespace WolfSmartsetCollector
     {
         public static string Escape(this string strName)
         {
-            return string.Concat(EscapeToChar(strName));
+            return string.IsNullOrEmpty(strName) ? string.Empty : string.Concat(EscapeToChar(strName));
         }
 
 
-        private static IEnumerable<char> EscapeToChar(string strRoomName)
+        private static IEnumerable<char> EscapeToChar(string strName)
         {
-            foreach (char c in strRoomName)
+            foreach (char c in strName)
                 if (!char.IsWhiteSpace(c))
                     if (char.IsLetterOrDigit(c))
                     {
