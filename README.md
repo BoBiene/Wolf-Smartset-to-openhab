@@ -21,6 +21,24 @@ or with docker
 docker run --rm -v <<PATH_TO_CREATE_FILES>>:/app/generated/ bobiene/wolfsmartset-to-openhab -u "<<USERNAME>>" -p "<<PASSWORD>>"
 ```
 
+### Parameter
+```
+  -u              Required. Username to authenticate at https://www.wolf-smartset.com/
+
+  -p              Required. Password to authenticate at https://www.wolf-smartset.com/
+
+  -d              (Default: false) Store reponses on disk
+
+  -e              (Default: false) Throw rest and json srialize exceptions
+
+  -m              (Default: false) When set, http-requests will be skipped an the json files cached on disk will be used
+  -o, --output    (Default: generated) Target directory to create the openHAB files in.
+
+  --help          Display this help screen.
+
+  --version       Display version information.
+```
+
 ### Generated files
 
 * items\wolf_smartset.items
