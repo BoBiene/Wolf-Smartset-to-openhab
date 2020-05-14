@@ -5,6 +5,7 @@ Wolf Smartset Cloud-Connection for openhab
 ![.NET Core](https://github.com/BoBiene/Wolf-Smartset-to-openhab/workflows/.NET%20Core/badge.svg)
 https://github.com/BoBiene/Wolf-Smartset-to-openhab/releases
 
+https://hub.docker.com/r/bobiene/wolfsmartset-to-openhab
 ## Usage 
 
 Replace ```<<USERNAME>>``` and ```<<PASSWORD>>``` with your Log-in credentials from https://www.wolf-smartset.com/ Portal.
