@@ -208,6 +208,7 @@ then
                 {
                     data = response.Data;
                     Console.WriteLine("Got valid response for " + ToLogString(request));
+                    blnRet = true;
                     if (options.DumpResponse)
                         DumpResponse(options, response);
                 }
