@@ -26,6 +26,12 @@ namespace WolfSmartsetCollector
         [Option('o', "output", Required = false, Default = "generated", HelpText = "Target directory to create the openHAB files in.")]
         public string OutputDir { get; set; } = "generated";
 
-        
+        [Option('s',"systems",HelpText ="List of system ids to process; leave empty to process all")]
+        public IEnumerable<long> SystemIds { get; set; }
+
+        [Option("pathToScript", Default = "/etc/openhab2/scripts/")]
+        public string PathToScripts { get; set; } = "/etc/openhab2/scripts/";
+
+
     }
 }

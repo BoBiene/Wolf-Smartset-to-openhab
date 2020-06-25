@@ -68,24 +68,27 @@ namespace WolfSmartsetCollector
                                 Console.WriteLine("Requesting system list");
                                 var systemListRequest = new RestRequest("portal/api/portal/GetSystemList", Method.GET);
 
-                                if(TryGetResponse(options,client,systemListRequest,out List<WolfSystem> wolfSystemList))
-                                { 
+                                if (TryGetResponse(options, client, systemListRequest, out List<WolfSystem> wolfSystemList))
+                                {
                                     HashSet<string> createdItems = new HashSet<string>();
                                     Dictionary<long, List<string>> mapValues = new Dictionary<long, List<string>>();
                                     foreach (var system in wolfSystemList)
                                     {
-                                        
+
+
                                         var guiDescriptionForGatewayRequest = new RestRequest("portal/api/portal/GetGuiDescriptionForGateway", Method.GET)
                                              .AddParameter("GatewayId", system.GatewayId)
                                              .AddParameter("SystemId", system.Id);
 
                                         if (TryGetResponse(options, client, guiDescriptionForGatewayRequest, out GuiDescriptionForGatewayResponse guiDescriptionForGateway))
                                         {
-                                            var fachmannNode = guiDescriptionForGateway.MenuItems.Find(m => m.Name == "Fachmann");
-                                            fachmannNode.SubMenuEntries.Sort((s1, s2) => StringComparer.OrdinalIgnoreCase.Compare(s1?.Name, s2?.Name));
+                                            if (options.SystemIds?.Count() == 0 || options.SystemIds?.Contains(system.Id) == true)
+                                            {
+                                                var fachmannNode = guiDescriptionForGateway.MenuItems.Find(m => m.Name == "Fachmann");
+                                                fachmannNode.SubMenuEntries.Sort((s1, s2) => StringComparer.OrdinalIgnoreCase.Compare(s1?.Name, s2?.Name));
 
 
-                                            rulesFile.Write($@"
+                                                rulesFile.Write($@"
 var String token =""""
 var String jsonConfig = """"
 var DateTime tokenTime = new DateTime(1970,1,1,0,0)
@@ -96,10 +99,10 @@ then
     if(tokenTime < now.plusHours(-1))
 	{{
         logInfo(""Wolf"",""Token expired, requesting new token"");
-        var String jsonToken =  executeCommandLine(""bash@@/etc/openhab2/scripts/request_token.sh@@{options.UserName}@@{Uri.EscapeDataString(options.Password)}"",5000)
+        var String jsonToken =  executeCommandLine(""bash@@{options.PathToScripts}request_token.sh@@{options.UserName}@@{Uri.EscapeDataString(options.Password)}"",5000)
         token = transform(""JSONPATH"",""$.access_token"",jsonToken);
-        jsonConfig =   executeCommandLine(""bash@@/etc/openhab2/scripts/request_config.sh@@""+token+""@@13657@@17269"",5000);
-        logDebug(""Wolf"",jsonConfig);
+        jsonConfig =   executeCommandLine(""bash@@{options.PathToScripts}request_config.sh@@""+token+""@@{system.GatewayId}@@{system.Id}"",5000);
+        logInfo(""Wolf-jsonConfig"",jsonConfig);
         tokenTime = now;
     }}
     else {{ }}
@@ -108,49 +111,53 @@ then
     var String ValueIds =  """";
 ");
 
-                                            foreach (var submenu in fachmannNode.SubMenuEntries)
-                                            {
-                                                Console.WriteLine("Processing submenu " + submenu.Name);
-                                                submenu.TabViews.Sort((t1, t2) => StringComparer.OrdinalIgnoreCase.Compare(t1?.TabName, t2?.TabName));
-                                                foreach (var tabView in submenu.TabViews)
+                                                foreach (var submenu in fachmannNode.SubMenuEntries)
                                                 {
-                                                    //BundleId
+                                                    Console.WriteLine("Processing submenu " + submenu.Name);
+                                                    submenu.TabViews.Sort((t1, t2) => StringComparer.OrdinalIgnoreCase.Compare(t1?.TabName, t2?.TabName));
+                                                    foreach (var tabView in submenu.TabViews)
+                                                    {
+                                                        //BundleId
 
-                                                    rulesFile.Write($@"
+                                                        rulesFile.Write($@"
     ValueIds = transform(""JSONPATH"",""$..[?(@.BundleId == {tabView.BundleId})]..[?(@.ValueId>0)].ValueId"", jsonConfig);
-    jsonValues =  executeCommandLine(""bash@@/etc/openhab2/scripts/request_values.sh@@""+token+""@@{system.GatewayId}@@{system.Id}@@{tabView.BundleId}@@""+ValueIds+"""",5000);
+    jsonValues =  executeCommandLine(""bash@@{options.PathToScripts}request_values.sh@@""+token+""@@{system.GatewayId}@@{system.Id}@@{tabView.BundleId}@@""+ValueIds+"""",5000);
     logDebug(""Wolf"",jsonValues);
 ");
-                                                    string tabViewName = (string.IsNullOrWhiteSpace(tabView.TabName) || tabView.TabName == "NULL") ? string.Empty : tabView.TabName;
-                                                    Console.WriteLine("Generating items for tab " + tabViewName);
-                                                    string grpName = (submenu.Name + (string.IsNullOrWhiteSpace(tabViewName) ? "" : "_" + tabViewName)).Escape();
-                                                    itemsFile.WriteLine($"Group {grpName} \"{submenu.Name}{(string.IsNullOrWhiteSpace(tabViewName) ? "" : " - " + tabViewName)}\"");
-                                                    sitemapFile.WriteLine($"Group item={grpName} ");
-                                                    foreach (var parameter in tabView.ParameterDescriptors)
-                                                    {
-                                                        AddParameter(rulesFile, itemsFile, createdItems, mapValues, grpName, parameter);
-                                                    }
-
-                                                    if (tabView?.SchemaTabViewConfigDto?.Configs != null)
-                                                    {
-                                                        foreach (var cfg in tabView.SchemaTabViewConfigDto.Configs)
+                                                        string tabViewName = (string.IsNullOrWhiteSpace(tabView.TabName) || tabView.TabName == "NULL") ? string.Empty : tabView.TabName;
+                                                        Console.WriteLine("Generating items for tab " + tabViewName);
+                                                        string grpName = (submenu.Name + (string.IsNullOrWhiteSpace(tabViewName) ? "" : "_" + tabViewName)).Escape();
+                                                        itemsFile.WriteLine($"Group {grpName} \"{submenu.Name}{(string.IsNullOrWhiteSpace(tabViewName) ? "" : " - " + tabViewName)}\"");
+                                                        sitemapFile.WriteLine($"Group item={grpName} ");
+                                                        foreach (var parameter in tabView.ParameterDescriptors)
                                                         {
-                                                            foreach (var parameter in cfg.Parameters)
+                                                            AddParameter(rulesFile, itemsFile, createdItems, mapValues, grpName, parameter);
+                                                        }
+
+                                                        if (tabView?.SchemaTabViewConfigDto?.Configs != null)
+                                                        {
+                                                            foreach (var cfg in tabView.SchemaTabViewConfigDto.Configs)
                                                             {
-                                                                AddParameter(rulesFile, itemsFile, createdItems, mapValues, grpName, parameter);
+                                                                foreach (var parameter in cfg.Parameters)
+                                                                {
+                                                                    AddParameter(rulesFile, itemsFile, createdItems, mapValues, grpName, parameter);
+                                                                }
                                                             }
                                                         }
                                                     }
                                                 }
+                                                rulesFile.WriteLine("end");
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine("skipping System with id " + system.Id);
                                             }
                                         }
                                         else
                                         {
                                             Console.WriteLine("Failed to request " + ToLogString(guiDescriptionForGatewayRequest));
                                         }
-                                        rulesFile.WriteLine("end");
                                     }
-
                                 }
                                 else
                                 {
