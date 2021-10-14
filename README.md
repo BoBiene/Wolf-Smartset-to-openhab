@@ -1,3 +1,8 @@
+# DEPRECATED
+
+| :exclamation:  This tool is depcrecated please use the official binding: https://next.openhab.org/addons/bindings/wolfsmartset/  |
+|-----------------------------------------|
+
 # Wolf-Smartset-to-openhab
 Wolf Smartset Cloud-Connection for openhab
 
